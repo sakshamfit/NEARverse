@@ -77,13 +77,13 @@ export const cityBuildings: BuildingConfig[] = [
   }
 ];
 
-// ==================== VILLAGE ====================
+// ==================== VILLAGE BUILDINGS ====================
 export const villageBuildings: BuildingConfig[] = [
   {
     id: 'village-main',
     name: 'Village Area',
     modelUrl: '/assets/village/village_compressed.glb',
-    position: [-40, 0, 25],
+    position: [-40, 0, 25],      // ← Village is placed here (left side of the map)
     rotation: [0, 0, 0],
     scale: [1, 1, 1],
     type: 'village'
