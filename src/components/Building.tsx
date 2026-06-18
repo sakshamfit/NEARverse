@@ -1,85 +1,103 @@
-import { Html } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import { useRef, useState, useEffect } from 'react';
+import * as THREE from 'three';
+import type { Player } from '../types';
+import { RealisticPlayer } from '../characters/RealisticPlayer';
+import { usePlayerAnimation } from '../characters/usePlayerAnimation';
+import { BuildingZone } from '../environment/BuildingZone';
+import { cityBuildings, villageBuildings } from '../environment/BuildingTypes';
+import { ProximityIndicator } from './ProximityIndicator';
 
-interface BuildingProps {
-  position: [number, number, number];
-  scale?: [number, number, number];
-  color: string;
-  type: 'cafe' | 'shop' | 'office' | 'house' | 'tech' | 'factory' | 'workshop' | 'temple' | 'ghat' | 'hotel';
+interface GameWorldProps {
+  localPlayer: Player | null;
+  players: Player[];
+  onPlayerMove: (position: [number, number, number], rotation: number) => void;
 }
 
-export function Building({ position, scale = [1, 1, 1], color, type }: BuildingProps) {
-  const [sx, sy, sz] = scale;
-  
-  const getRoofColor = () => {
-    switch (type) {
-      case 'tech': return '#1a1a2e';
-      case 'temple': return '#c1121f';
-      case 'cafe': return '#e76f51';
-      default: return '#264653';
-    }
-  };
+export function GameWorld({ localPlayer, players, onPlayerMove }: GameWorldProps) {
+  const [keys, setKeys] = useState<Set<string>>(new Set());
+  const localPlayerRef = useRef<THREE.Group>(null!);
 
-  const roofColor = getRoofColor();
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => setKeys(prev => new Set(prev).add(e.key.toLowerCase()));
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const newKeys = new Set(keys); newKeys.delete(e.key.toLowerCase()); setKeys(newKeys);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [keys]);
+
+  const isMoving = keys.has('w') || keys.has('s') || keys.has('a') || keys.has('d');
+  const isRunning = keys.has('shift');
+  const currentAnimation = usePlayerAnimation({ isMoving, isRunning });
+
+  useFrame((_, delta) => {
+    if (!localPlayer || !localPlayerRef.current) return;
+    const speed = isRunning ? 12 : 6;
+    const moveSpeed = speed * delta;
+    let moveX = 0, moveZ = 0;
+    if (keys.has('w')) moveZ -= 1;
+    if (keys.has('s')) moveZ += 1;
+    if (keys.has('a')) moveX -= 1;
+    if (keys.has('d')) moveX += 1;
+
+    if (moveX !== 0 || moveZ !== 0) {
+      const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+      moveX /= length; moveZ /= length;
+      const currentPos = localPlayer.position;
+      const newX = Math.max(-45, Math.min(45, currentPos[0] + moveX * moveSpeed));
+      const newZ = Math.max(-35, Math.min(35, currentPos[2] + moveZ * moveSpeed));
+      const rotation = Math.atan2(moveX, moveZ);
+      onPlayerMove([newX, currentPos[1], newZ], rotation);
+      localPlayerRef.current.position.x = newX;
+      localPlayerRef.current.position.z = newZ;
+      localPlayerRef.current.rotation.y = rotation;
+    }
+  });
 
   return (
-    <group position={position}>
-      {/* Main building body */}
-      <mesh position={[0, sy * 0.5, 0]} castShadow receiveShadow>
-        <boxGeometry args={[sx * 3.5, sy * 3, sz * 3.5]} />
-        <meshLambertMaterial color={color} />
-      </mesh>
-
-      {/* Roof */}
-      <mesh position={[0, sy * 1.6, 0]} castShadow>
-        <coneGeometry args={[sx * 2.1, sy * 1.2, 4]} />
-        <meshLambertMaterial color={roofColor} />
-      </mesh>
-
-      {/* Windows - front row */}
-      {Array.from({ length: Math.floor(sy * 1.8) }).map((_, i) => (
-        <mesh 
-          key={`front-${i}`} 
-          position={[-sx * 1.2, sy * 0.4 + i * 0.9, sz * 1.76]} 
-          castShadow
-        >
-          <planeGeometry args={[0.7, 0.6]} />
-          <meshLambertMaterial color="#a8dadc" emissive="#a8dadc" emissiveIntensity={0.1} />
-        </mesh>
+    <>
+      {cityBuildings.map((b) => (
+        <BuildingZone key={b.id} modelUrl={b.modelUrl} position={b.position} rotation={b.rotation} scale={b.scale} />
+      ))}
+      {villageBuildings.map((b) => (
+        <BuildingZone key={b.id} modelUrl={b.modelUrl} position={b.position} rotation={b.rotation} scale={b.scale} />
       ))}
 
-      {/* Door */}
-      <mesh position={[0, sy * 0.35, sz * 1.76]} castShadow>
-        <planeGeometry args={[0.9, 1.5]} />
-        <meshLambertMaterial color="#2c3e50" />
+      {localPlayer && (
+        <group ref={localPlayerRef} position={localPlayer.position}>
+          <RealisticPlayer
+            url="/assets/characters/male_character_in_suit.glb"
+            animation={currentAnimation}
+            rotation={localPlayer.rotation}
+            scale={1}
+            name={localPlayer.name}
+            isLocal={true}
+          />
+        </group>
+      )}
+
+      {players.map((player) => (
+        <group key={player.id} position={player.position} rotation={[0, player.rotation, 0]}>
+          <RealisticPlayer
+            url="/assets/characters/modern_tactical_female_character.glb"
+            animation="Idle"
+            rotation={player.rotation}
+            scale={1}
+            name={player.name}
+          />
+        </group>
+      ))}
+
+      <ProximityIndicator localPlayer={localPlayer} players={players} />
+      <mesh position={[0, 60, 0]}>
+        <sphereGeometry args={[120]} />
+        <meshBasicMaterial color="#87CEEB" side={THREE.BackSide} transparent opacity={0.15} />
       </mesh>
-
-      {/* Sign / Name */}
-      {(type === 'cafe' || type === 'shop' || type === 'hotel') && (
-        <Html position={[0, sy * 2.4, sz * 2]} style={{ pointerEvents: 'none' }}>
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            padding: '3px 14px',
-            borderRadius: '999px',
-            fontSize: '11px',
-            fontWeight: 700,
-            color: '#222',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            whiteSpace: 'nowrap'
-          }}>
-            {type === 'cafe' && '☕ Hazratganj Cafe'}
-            {type === 'shop' && '🛍️ Local Bazaar'}
-            {type === 'hotel' && '🏨 Taj View Hotel'}
-          </div>
-        </Html>
-      )}
-
-      {/* Tech building special glow */}
-      {type === 'tech' && (
-        <mesh position={[0, sy * 2.8, 0]}>
-          <sphereGeometry args={[0.4]} />
-          <meshBasicMaterial color="#00ff88" transparent opacity={0.6} />
-        </mesh>
-      )}
-    </group>
+    </>
   );
 }
