@@ -1,0 +1,32 @@
+node_modules
+
+# Build output
+dist/
+.vite/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# ─── Ruflo / Claude Code Agent Runtime ───────────────────────────────────────
+# Runtime state (sessions, memory DBs, logs) — do NOT commit
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+.swarm/
+*.db
+*.db-shm
+*.db-wal
+
+# Claude Code synced memory (auto-generated)
+.claude/memory.db
+
+# Ruflo plugin cache
+.claude-flow/plugins/cache/
+
+# Keep these (version-controlled agent config):
+# .claude/            ← agent definitions, skills, commands — COMMIT this
+# .claude-flow/config.yaml ← project config — COMMIT this
+# .mcp.json           ← MCP server registration — COMMIT this
+# CLAUDE.md           ← project context for Claude — COMMIT this

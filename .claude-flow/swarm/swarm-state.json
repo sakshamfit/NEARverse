@@ -1,0 +1,24 @@
+{
+  "swarms": {
+    "swarm-1782545601154-cpmx35": {
+      "swarmId": "swarm-1782545601154-cpmx35",
+      "topology": "hierarchical-mesh",
+      "maxAgents": 15,
+      "status": "running",
+      "agents": [],
+      "tasks": [],
+      "config": {
+        "topology": "hierarchical-mesh",
+        "maxAgents": 15,
+        "strategy": "specialized",
+        "communicationProtocol": "message-bus",
+        "autoScaling": true,
+        "consensusMechanism": "majority"
+      },
+      "createdAt": "2026-06-27T07:33:21.154Z",
+      "updatedAt": "2026-06-27T07:33:21.154Z",
+      "pid": 28620
+    }
+  },
+  "version": "3.0.0"
+}

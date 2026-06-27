@@ -1,0 +1,23 @@
+
+> nearverse@0.0.0 dev:all
+> concurrently "npm run server" "npm run dev"
+
+[0] 
+[0] > nearverse@0.0.0 server
+[0] > tsx server/index.ts
+[0] 
+[1] 
+[1] > nearverse@0.0.0 dev
+[1] > vite
+[1] 
+[1] Port 5173 is in use, trying another one...
+[1] Port 5174 is in use, trying another one...
+[1] 
+[1]   [32m[1mVITE[22m v8.0.16[39m  [2mready in [0m[1m449[22m[2m[0m ms[22m
+[1] 
+[1]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5175[22m/[39m
+[1]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.56.1:[1m5175[22m/[39m
+[1]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.202.105:[1m5175[22m/[39m
+[0] 🚀 NEARverse server running on http://localhost:3001
+[0] npm run server exited with code 1073807364
+[1] npm run dev exited with code 1073807364

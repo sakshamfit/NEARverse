@@ -8,12 +8,12 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Types for Supabase tables
 export interface Profile {
   id: string;
-  name: string;
-  profession: string;
-  avatar_color: string;
-  trust_score: number;
-  connect_coins: number;
-  created_at: string;
+  full_name: string;
+  skills: string[] | null;
+  bio: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  updated_at: string;
 }
 
 export interface GameTask {
