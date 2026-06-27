@@ -1,24 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { SignInForm } from './components/SignInForm';
 import { ProfileSetup } from './components/ProfileSetup';
 import { Home } from './pages/Home';
 
 function App() {
-  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const location = useLocation();
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
       if (session?.user) {
         setUser(session.user);
-        fetchProfile();
+        fetchProfile(session.user.id);
       } else {
         setLoading(false);
       }
@@ -26,11 +23,10 @@ function App() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
+      (_event, session) => {
         if (session?.user) {
           setUser(session.user);
-          fetchProfile();
+          fetchProfile(session.user.id);
         } else {
           setUser(null);
           setProfile(null);
@@ -42,13 +38,14 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async () => {
-    if (!user?.id) return;
+  const fetchProfile = async (userId?: string) => {
+    const targetUserId = userId || user?.id;
+    if (!targetUserId) return;
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', targetUserId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -85,7 +82,7 @@ function App() {
     return (
       <Router>
         <Routes>
-          <Route path="/" element={<SignInForm onSignedIn={(user) => { setUser(user); fetchProfile(); }} />} />
+          <Route path="/" element={<SignInForm onSignedIn={(user) => { setUser(user); fetchProfile(user.id); }} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
@@ -107,23 +104,17 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
+            <div className="flex justify-between h-16 items-center">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <img className="h-8 w-8" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.full_name || user.email || 'User')}`} alt="Logo" />
-                </div>
-                <div className="hidden md:block">
-                  <div className="ml-10 flex items-baseline space-x-4">
-                    <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
-                      Home
-                    </a>
-                    <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
-                      Map
-                    </a>
-                  </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  Nearverse
+                </span>
+                <div className="ml-10 flex items-baseline space-x-4">
+                  <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
+                    Map
+                  </a>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -149,9 +140,9 @@ function App() {
 
         <main className="mt-10">
           <Routes>
-            <Route path="/" element={<Home user={user} profile={profile} />} />
+            <Route path="/" element={<Home />} />
             <Route path="/profile" element={<ProfileSetup user={user} onProfileComplete={(profile) => setProfile(profile)} isEdit={true} />} />
-            <Route path="*" element={<Navigate to="/">*} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>
