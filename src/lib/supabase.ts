@@ -15,16 +15,3 @@ export interface Profile {
   longitude: number | null;
   updated_at: string;
 }
-
-export interface GameTask {
-  id: string;
-  title: string;
-  description: string;
-  reward: number;
-  location: string;
-  category: string;
-  poster_id: string;
-  poster_name: string;
-  status: 'open' | 'accepted' | 'completed';
-  created_at: string;
-}
