@@ -137,57 +137,55 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ user, onProfileCompl
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <img className="mx-auto h-12 w-12" src="https://ui-avatars.com/api/?background=random&size=128" alt="Logo" />
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isEdit ? 'Edit your profile' : 'Complete your profile'}
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {isEdit ? 'Update your details to help others find you nearby' : 'Add your name, skills, and bio to help others find you nearby'}
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8 bg-white rounded-2xl shadow-2xl backdrop-blur-sm border border-white/20">
+        <div className="pt-10 px-8">
+          <div className="text-center space-y-4">
+            <div className="relative h-16 w-16 mx-auto">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-sm font-bold">N</span>
+                </div>
+              </div>
+            </div>
+            <h2 className="text-3xl font-extrabold text-gray-900">
+              {isEdit ? 'Edit your profile' : 'Complete your profile'}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {isEdit
+                ? 'Update your details to help others find you nearby'
+                : 'Add your name, skills, and bio to help others find you nearby'}
+            </p>
+          </div>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-              Full name
-            </label>
+
+        <form className="mt-8 space-y-6 px-8" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <input
               type="text"
               id="fullName"
+              placeholder="Full name"
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="block w-full rounded-xl border-0 py-3 px-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200 hover:shadow-md"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
             />
-          </div>
-
-          <div>
-            <label htmlFor="skills" className="block text-sm font-medium text-gray-700">
-              Skills (comma-separated)
-            </label>
             <input
               type="text"
               id="skills"
               placeholder="e.g., JavaScript, Cooking, Guitar"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="block w-full rounded-xl border-0 py-3 px-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200 hover:shadow-md"
               value={skills}
               onChange={(e) => setSkills(e.target.value)}
             />
             <p className="mt-1 text-sm text-gray-500">
               We'll use your skills to find compatible people nearby
             </p>
-          </div>
-
-          <div>
-            <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-              Bio (optional)
-            </label>
             <textarea
               id="bio"
-              rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              rows={4}
+              placeholder="Bio (optional)"
+              className="block w-full rounded-xl border-0 py-3 px-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200 hover:shadow-md"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />
@@ -195,31 +193,29 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ user, onProfileCompl
 
           {!isEdit && (
             <>
-              <div className="flex items-center text-sm text-gray-500">
+              <div className="flex items-center text-sm text-gray-500 mb-4">
                 {isLoadingLocation ? (
                   <>
-                    <svg className="h-4 w-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                    </svg>
+                    <div className="h-4 w-4 mr-2 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                     <span>Detecting your location...</span>
                   </>
                 ) : location ? (
                   <>
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0111118 0z" />
-                    </svg>
+                    <div className="h-4 w-4 mr-2 flex items-center justify-center bg-indigo-100 text-indigo-800 rounded-full">
+                      <span className="text-xs">📍</span>
+                    </div>
                     <span>
                       Location detected: Latitude {location?.latitude?.toFixed(4)}, Longitude {location?.longitude?.toFixed(4)}
                     </span>
                   </>
-                )
-                : (
+                ) : (
                   <>
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Click to detect location</span>
+                    <div className="h-4 w-4 mr-2 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-full">
+                      <span className="text-xs">📍</span>
+                    </div>
+                    <span className="cursor-pointer hover:text-gray-900 transition-colors duration-200">
+                      Click to detect location
+                    </span>
                   </>
                 )}
               </div>
@@ -227,7 +223,7 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ user, onProfileCompl
                 <div className="mt-2">
                   <button
                     onClick={handleRefreshLocation}
-                    className="text-sm text-gray-600 hover:text-gray-900"
+                    className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
                   >
                     Refresh location
                   </button>
@@ -236,7 +232,7 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ user, onProfileCompl
                 <div className="mt-2">
                   <button
                     onClick={handleRefreshLocation}
-                    className="text-sm text-gray-600 hover:text-gray-900"
+                    className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
                   >
                     Use my location
                   </button>
@@ -245,24 +241,24 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ user, onProfileCompl
             </>
           )}
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-4">
             {isEdit && (
               <button
                 type="button"
                 onClick={handleRefreshLocation}
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
               >
                 Refresh location
               </button>
             )}
           </div>
 
-          <div>
+          <div className="mt-6 space-y-4">
             {error ? (
               <p className="mt-2 text-sm text-red-600">{error}</p>
             ) : null}
             <button type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus-ring-offset-2 focus-ring-indigo-500 disabled:opacity-50"
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus-ring-offset-2 focus-ring-indigo-500 disabled:opacity-50 transition-all duration-200 transform hover:-translate-y-05 active:translate-y-0"
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save and Continue'}

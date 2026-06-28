@@ -30,3 +30,4 @@ dist/
 # .claude-flow/config.yaml ← project config — COMMIT this
 # .mcp.json           ← MCP server registration — COMMIT this
 # CLAUDE.md           ← project context for Claude — COMMIT this
+.vercel

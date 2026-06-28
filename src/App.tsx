@@ -15,7 +15,7 @@ function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id);
+        fetchProfile();
       } else {
         setLoading(false);
       }
@@ -23,10 +23,10 @@ function App() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         if (session?.user) {
           setUser(session.user);
-          fetchProfile(session.user.id);
+          await fetchProfile();
         } else {
           setUser(null);
           setProfile(null);
@@ -38,14 +38,17 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (userId?: string) => {
-    const targetUserId = userId || user?.id;
-    if (!targetUserId) return;
+  const fetchProfile = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', targetUserId)
+        .eq('id', user.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -66,12 +69,16 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-xl">
-            NV
+          <div className="relative h-14 w-14 mx-auto">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-white text-sm font-bold">N</span>
+              </div>
+            </div>
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Nearverse</h1>
+          <h1 className="mt-4 text-2xl font-extrabold text-gray-900">Nearverse</h1>
           <p className="mt-2 text-gray-500">Connecting people by location and skills</p>
         </div>
       </div>
@@ -82,7 +89,21 @@ function App() {
     return (
       <Router>
         <Routes>
-          <Route path="/" element={<SignInForm onSignedIn={(user) => { setUser(user); fetchProfile(user.id); }} />} />
+          <Route path="/" element={<SignInForm onSignedIn={(user) => { setUser(user); fetchProfile(); }} />} />
+          <Route path="/auth/callback" element={
+            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
+              <div className="text-center">
+                <div className="relative h-14 w-14 mx-auto">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-spin">
+                      <span className="text-white text-sm font-bold">N</span>
+                    </div>
+                  </div>
+                </div>
+                <h2 className="mt-4 text-xl font-extrabold text-gray-900">Processing login...</h2>
+              </div>
+            </div>
+          } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
@@ -103,16 +124,16 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 items-center">
               <div className="flex items-center">
-                <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="text-xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                   Nearverse
                 </span>
                 <div className="ml-10 flex items-baseline space-x-4">
-                  <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
+                  <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200">
                     Map
                   </a>
                 </div>
@@ -127,10 +148,10 @@ function App() {
                   <input
                     type="search"
                     placeholder="Search people or skills..."
-                    className="block w-full pl-10 pr-4 py-2 sm:text-sm border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:truncate"
+                    className="block w-full pl-10 pr-4 py-2 sm:text-sm border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:truncate transition-all duration-200 hover:border-indigo-300 focus:border-indigo-500"
                   />
                 </div>
-                <button onClick={signOut} className="flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
+                <button onClick={signOut} className="flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus-ring-offset-2 focus-ring-indigo-500 transition-all duration-200 transform hover:-translate-y-05">
                   <span className="mr-2">Sign out</span>
                 </button>
               </div>

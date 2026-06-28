@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { UserCard } from '../components/UserCard';
+import { Map, MapMarker, MarkerContent, MarkerPopup, MapControls } from '@/components/ui/map';
 
 const EARTH_RADIUS = 6371e3; // meters
 
@@ -26,113 +26,170 @@ const haversineDistance = (
 };
 
 export const Home: React.FC = () => {
-  const navigate = useNavigate();
-  const [users, setUsers] = useState<Array<any>>([]);
-  const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [radius, setRadius] = useState(10000); // 10 km in meters
-  const [connected, setConnected] = useState<Set<string>>(new Set());
+  const [weather, setWeather] = useState<{
+    temperature: number;
+    description: string;
+    humidity: number;
+    windSpeed: number;
+    icon: string;
+  } | null>(null);
+  const [weatherLoaded, setWeatherLoaded] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadUsers = async () => {
-      if (!loading && !refreshing) setLoading(true);
+    const fetchUserLocation = async () => {
+      if (!navigator.geolocation) {
+        setError('Geolocation is not supported by your browser');
+        return;
+      }
+
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ latitude, longitude });
+
+          // Fetch weather data when location is obtained
+          fetchWeatherData(latitude, longitude);
+
+          setLoading(false);
+        },
+        (error) => {
+          setError(`Error getting location: ${error.message}`);
+          setLoading(false);
+        }
+      );
+    };
+
+    // Also handle weather API key from environment
+    const fetchWeatherData = async (lat: number, lon: number) => {
       try {
-        // Get current user's profile to get their location
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', (await supabase.auth.getUser()).data.user?.id)
-          .single();
+        // Using OpenWeatherMap API
+        const apiKey = import.meta.env.VITE_WEATHER_API_KEY || 'd9bf160308f4ac43fa3f185bd18b7567';
+        const response = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
+        );
 
-        if (profileError) throw profileError;
-
-        if (!profile?.latitude || !profile?.longitude) {
-          setError('Location not set. Please update your profile to enable nearby discovery.');
-          setUsers([]);
-          setLoading(false);
-          return;
+        if (!response.ok) {
+          throw new Error('Failed to fetch weather data');
         }
 
-        // Fetch all profiles with location (excluding current user)
-        const { data: allProfiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*')
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
-          .neq('id', profile.id);
-
-        if (profilesError) throw profilesError;
-
-        // Filter by distance
-        const nearby = allProfiles
-          .map((user) => {
-            const distance = haversineDistance(
-              profile.latitude,
-              profile.longitude,
-              user.latitude,
-              user.longitude
-            );
-            return { ...user, distance };
-          })
-          .filter((user) => user.distance <= radius)
-          .sort((a, b) => a.distance - b.distance);
-
-        if (isMounted) {
-          setUsers(nearby);
-          setError(null);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || 'Failed to load nearby users');
-          setUsers([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+        const data = await response.json();
+        setWeather({
+          temperature: Math.round(data.main.temp),
+          description: data.weather[0].description,
+          humidity: data.main.humidity,
+          windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
+          icon: data.weather[0].icon
+        });
+      } catch (err) {
+        console.error('Weather fetch error:', err);
+        // Don't set error state for weather as it's not critical
       }
     };
 
-    if (!loading && !refreshing) loadUsers();
-  }, [loading, refreshing, radius]);
+    fetchUserLocation();
+  }, []);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setLoading(true), 0);
-  };
+  useEffect(() => {
+    // Text-to-speech for weather announcement when weather data loads
+    if (weather && !weatherLoaded && 'speechSynthesis' in window) {
+      setWeatherLoaded(true);
 
-  const handleConnect = async (userId: string) => {
-    try {
-      // In a real app, you would send a connection request to the server
-      // For now, we'll just update the local state
-      setConnected((prev) => {
-        const newSet = new Set(prev);
-        newSet.add(userId);
-        return newSet;
-      });
-      // Optionally, show a success message
-      // You could also update the database here
-    } catch (err) {
-      console.error('Error connecting:', err);
+      // Wait a bit for UI to load before speaking
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance();
+        const timeOfDay = getTimeOfDay();
+        utterance.text = `Good ${timeOfDay}. It's currently ${weather.temperature} degrees Celsius with ${weather.description}. The humidity is ${weather.humidity} percent and wind speed is ${weather.windSpeed} kilometers per hour. Enjoy using Nearverse!`;
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        utterance.volume = 0.8;
+        window.speechSynthesis.speak(utterance);
+      }, 1000);
     }
+  }, [weather, weatherLoaded]);
+
+  const getTimeOfDay = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    if (hour < 20) return 'evening';
+    return 'night';
   };
 
-  const handleProfile = () => {
-    navigate('/profile');
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!userLocation) return;
+
+      setLoading(true);
+      try {
+        // Get the current user's session to get their ID
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+
+        // Fetch all profiles except the current user's
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .neq('id', user.id);
+
+        if (profilesError) throw profilesError;
+
+        // Calculate distance and filter by radius
+        const nearby = profiles
+          .map((profile) => {
+            if (profile.latitude === null || profile.longitude === null) {
+              return null;
+            }
+            const distance = haversineDistance(
+              userLocation.latitude,
+              userLocation.longitude,
+              profile.latitude,
+              profile.longitude
+            );
+            return { ...profile, distance };
+          })
+          .filter((profile): profile is any => profile !== null && profile.distance <= radius)
+          .sort((a, b) => a.distance - b.distance);
+
+        setUsers(nearby);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load users');
+        console.error('Error fetching users:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [userLocation, radius]);
+
+  const handleRadiusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRadius(parseInt(e.target.value) * 1000); // convert km to meters
   };
 
-  if (loading) {
+  if (loading && !userLocation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="space-y-4">
-          <svg className="h-8 w-8 text-indigo-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-          </svg>
-          <p className="text-sm text-gray-600">Finding people near you...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
+        <div className="text-center">
+          <div className="relative h-12 w-12 mx-auto">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-dashed border-indigo-200 rounded-full animate-spin">
+                <span className="text-white text-sm font-bold">N</span>
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-gray-600">Getting your location...</p>
         </div>
       </div>
     );
@@ -142,16 +199,22 @@ export const Home: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
-          <svg className="h-8 w-8 text-red-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
+          <div className="relative h-8 w-8 mx-auto">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="h-4 w-4 text-red-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+            </div>
+          </div>
           <h2 className="text-lg font-medium text-gray-900">Something went wrong</h2>
-          <p className="text-sm text-gray-600">{error}</p>
+          <p className="sm:mx-auto mt-2 text-sm text-gray-600">{error}</p>
           <button
-            onClick={handleRefresh}
-            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus-ring-offset-2 focus-ring-indigo-500 transition-all duration-200 transform hover:-translate-y-05"
           >
             Try again
           </button>
@@ -161,71 +224,140 @@ export const Home: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            People near you
-          </h1>
-          <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      {/* Location not set */}
+      {!userLocation && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Please allow location access to see nearby users.
+            </p>
             <button
-              onClick={handleProfile}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus-ring-offset-2 focus-ring-indigo-500"
+              onClick={() => window.location.reload()}
+              className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200"
             >
-              Edit profile
-            </button>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus-ring-offset-2 focus-ring-indigo-500"
-            >
-              <svg className="h-4 w-4 mr-1" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.001 8.001 0 01-4.582-9m0 0h11m-11 11a8.005 8.005 0 01-4.582 9m0 0H7m11-9v3m-3 0h.008M16 11h.01"></path>
-              </svg>
-              Refresh
+              Retry
             </button>
           </div>
         </div>
+      )}
 
-        {users.length > 0 ? (
-          <div className="space-y-4">
-            {users.map((user) => (
-              <UserCard
-                key={user.id}
-                user={user}
-                onConnect={handleConnect}
-                connected={connected.has(user.id)}
+      {/* Map and users list */}
+      {userLocation && (
+        <>
+          <div className="relative h-[400px]">
+            <Map className="h-full w-full" center={[userLocation.longitude, userLocation.latitude]} zoom={13}>
+              {/* User's location marker */}
+              <MapMarker longitude={userLocation.longitude} latitude={userLocation.latitude}>
+                <MarkerContent className="bg-indigo-600 text-white rounded-full flex items-center justify-center w-8 h-8">
+                  YOU
+                </MarkerContent>
+              </MapMarker>
+
+              {/* Other users markers */}
+              {users.map((user) => (
+                <MapMarker
+                  key={user.id}
+                  longitude={user.longitude}
+                  latitude={user.latitude}
+                >
+                  <MarkerContent className="bg-green-500 text-white rounded-full flex items-center justify-center w-6 h-6">
+                    {/* Show first letter of name */}
+                    {user.full_name ? user.full_name.charAt(0).toUpperCase() : '?'}
+                  </MarkerContent>
+                  <MarkerPopup>
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-gray-900">{user.full_name || 'Anonymous'}</h3>
+                      <p className="text-sm text-gray-600">
+                        {user.skills && user.skills.length > 0
+                          ? user.skills.join(', ')
+                          : 'No skills listed'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {Math.round(user.distance)} m away
+                      </p>
+                    </div>
+                  </MarkerPopup>
+                </MapMarker>
+              ))}
+
+              {/* Map controls */}
+              <MapControls
+                showZoom={true}
+                showLocate={true}
+                className="bottom-2 right-2"
               />
-            ))}
+            </Map>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <svg className="h-12 w-12 text-gray-400 mx-auto mb-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
-              <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
-            </svg>
-            <p className="text-lg font-medium text-gray-900">
-              No one nearby yet
-            </p>
-            <p className="mt-2 text-sm text-gray-600">
-              Try increasing your search radius or check back later.
-            </p>
-            <div className="mt-6 flex justify-center space-x-3">
-              <button
-                onClick={() => setRadius(20000)}
-                className={`px-3 py-1 text-sm font-medium ${radius === 20000 ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300'} rounded-md hover:bg-gray-50`}
+
+          {/* Weather Display */}
+          {weather && (
+            <div className="absolute top-4 left-4 flex items-center space-x-3 bg-white/80 backdrop-blur-sm rounded-lg p-3 shadow-lg z-10">
+              <div className="text-2xl">
+                {/* Weather icon would go here - simplified for now */}
+                {weather.temperature > 25 ? '☀️' : weather.temperature > 15 ? '⛅' : '☁️'}
+              </div>
+              <div className="space-y-1 text-left">
+                <p className="font-medium text-gray-900">{weather.temperature}°C</p>
+                <p className="text-sm text-gray-600 capitalize">{weather.description}</p>
+                <p className="text-xs text-gray-500">
+                  Humidity: {weather.humidity}% | Wind: {weather.windSpeed}km/h
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Users list */}
+          <div className="mt-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Nearby Users
+            </h2>
+            <div className="space-y-4">
+              {users.length > 0 ? (
+                users.map((user) => (
+                  <UserCard
+                    key={user.id}
+                    user={{
+                      id: user.id,
+                      full_name: user.full_name,
+                      skills: user.skills,
+                      bio: user.bio,
+                      distance: user.distance,
+                    }}
+                    onConnect={() => {
+                      // Handle connect action
+                      alert(`Connect request sent to ${user.full_name}`);
+                    }}
+                    connected={false}
+                  />
+                ))
+              ) : (
+                <p className="text-center text-gray-500">
+                  No users found within {radius / 1000}km. Try increasing the search radius.
+                </p>
+              )}
+            </div>
+
+            {/* Radius selector */}
+            <div className="mt-4 flex items-center space-x-3">
+              <span className="text-sm text-gray-600">Search radius:</span>
+              <select
+                value={radius / 1000}
+                onChange={handleRadiusChange}
+                className="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm focus:outline-none focus:ring-2 focus-ring-indigo-500"
               >
-                20km
-              </button>
-              <button
-                onClick={() => setRadius(50000)}
-                className={`px-3 py-1 text-sm font-medium ${radius === 50000 ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300'} rounded-md hover:bg-gray-50`}
-              >
-                50km
-              </button>
+                <option value="5">5 km</option>
+                <option value="10" selected>
+                  10 km
+                </option>
+                <option value="20">20 km</option>
+                <option value="50">50 km</option>
+                <option value="100">100 km</option>
+              </select>
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
